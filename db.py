@@ -17,12 +17,16 @@ def create_collection(collection_name, collection_schema):
         properties = {'bsonType': field['type']}
         minimum = field.get('minlength')
         maximum = field.get('maxlength')
+        enum = field.get('enum')
 
         if type(minimum) == int:
             properties['minimum'] = minimum
 
         if type(maximum) == int:
             properties['maximum'] = maximum
+
+        if type(enum) == list:
+            properties['enum'] = enum
 
         if field.get('required') is True:
             required.append(field_key)
@@ -80,8 +84,12 @@ def init_db():
             'type': 'string',
             'required': True,
         },
-        'barcode': {
+        'brand': {
             'type': 'string',
+            'required': True,
+        },
+        'barcode': {
+            'type': 'number',
             'required': True,
         },
         'description': {
@@ -99,7 +107,28 @@ def init_db():
 
     }
 
+    review_schema = {
+        'userId': {
+            'type': 'objectId',
+            'required': True,
+        },
+        'barcode': {
+            'type': 'number',
+            'required': True,
+        },
+        'review': {
+            'type': 'string',
+            "required": True,
+        },
+        'createdAt': {
+            'type': 'date',
+            'required': True,
+        },
+    }
+
     create_collection('users', user_schema)
     create_collection('products', product_schema)
+    create_collection('reviews', review_schema)
 
     db.products.create_index("barcode", unique=True)
+    db.products.create_index([("name", "text"), ("brand", "text")])
