@@ -37,8 +37,8 @@ def login():
 
     user = db.users.find_one({'email': user_data['email']})
     if user and check_password_hash(user['password'], user_data['password']):
-        access_token = create_access_token(identity=user['email'], fresh=True)
-        refresh_token = create_refresh_token(identity=user['email'])
+        access_token = create_access_token(identity=str(user['_id']), fresh=True)
+        refresh_token = create_refresh_token(identity=str(user['_id']))
 
         return (
             {
@@ -52,3 +52,4 @@ def login():
             200,
         )
     return {"error": "Invalid email or password."}, 401
+
