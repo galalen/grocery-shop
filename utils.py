@@ -4,14 +4,14 @@ from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
 from db import db
 
 
-def role_required(role):
+def role_required(roles: list):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             verify_jwt_in_request()
             user_id = get_jwt_identity()
             user = db.users.find_one({"_id": bson.ObjectId(user_id)})
-            if not user or (user and user["role"] != role):
+            if not user or (user and user["role"] not in roles):
                 return {"error": "Unauthorized access"}, 403
 
             return f(*args, **kwargs)

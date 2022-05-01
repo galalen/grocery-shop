@@ -14,7 +14,7 @@ product_api = Blueprint("product", __name__)
 
 
 @product_api.route("/", methods=["POST"])
-@role_required("admin")
+@role_required(["admin"])
 def upload_products():
     """
     Upload product to the database
@@ -50,7 +50,7 @@ def upload_products():
 
 
 @product_api.route("/review", methods=["POST"])
-@role_required("client")
+@role_required(["client"])
 def add_review():
     """
     Add review to a product
@@ -75,8 +75,8 @@ def add_review():
 
 
 @product_api.route("/search", methods=["POST"])
-@role_required("client")
-@cache.cached(timeout=300)
+@role_required(["client"])
+@cache.cached(timeout=60, query_string=True)
 def search_products():
     """
     Search for a product
