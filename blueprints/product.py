@@ -2,17 +2,17 @@ import csv
 from datetime import datetime
 from io import StringIO
 from flask import Blueprint, request
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import get_jwt_identity
 from marshmallow import ValidationError
 from schemas.product import ProductSchema, ReviewSchema
+from utils import role_required
 from db import db
-
 
 product_api = Blueprint("product", __name__)
 
 
 @product_api.route("/", methods=["POST"])
-@jwt_required()
+@role_required("admin")
 def upload_products():
     """
     Upload product to the database
@@ -48,7 +48,7 @@ def upload_products():
 
 
 @product_api.route("/review", methods=["POST"])
-@jwt_required()
+@role_required("client")
 def add_review():
     """
     Add review to a product
@@ -73,6 +73,7 @@ def add_review():
 
 
 @product_api.route("/search", methods=["POST"])
+@role_required("client")
 def search_products():
     """
     Search for a product
