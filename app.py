@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from flask import Flask
 from flask_jwt_extended import JWTManager
 from db import init_db
+from caching import cache
 from blueprints.user import user_api
 from blueprints.product import product_api
 
@@ -17,6 +18,7 @@ app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
 app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(hours=48)
 
 jwt = JWTManager(app)
+cache.init_app(app)
 
 
 @app.before_first_request

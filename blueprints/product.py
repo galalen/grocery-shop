@@ -1,12 +1,14 @@
 import csv
 from datetime import datetime
 from io import StringIO
+
 from flask import Blueprint, request
 from flask_jwt_extended import get_jwt_identity
 from marshmallow import ValidationError
 from schemas.product import ProductSchema, ReviewSchema
 from utils import role_required
 from db import db
+from caching import cache
 
 product_api = Blueprint("product", __name__)
 
@@ -67,47 +69,49 @@ def add_review():
     if not product:
         return {"error": "Product not found"}, 404
 
-    review_data["createdAt"] = datetime.now()
+    review_data["createdAt"] = datetime.utcnow()
     db.reviews.insert_one(review_data)
     return {"message": "Review added successfully"}, 201
 
 
 @product_api.route("/search", methods=["POST"])
 @role_required("client")
+@cache.cached(timeout=300)
 def search_products():
     """
     Search for a product
     """
     query = request.args.get("searchText")
-    page = int(request.args.get("page", 0))
+    page = request.args.get("page", 0)
+
+    if not str(page).isnumeric():
+        return {"error": "Page must be a number"}, 400
+    page = int(page)
+
+    # limit results to 10 per page
     limit = 10
 
     if query:
         count = db.products.count_documents({"$text": {"$search": query}})
-        pipline = [
-            {"$match": {"$text": {"$search": query}}},
-            {"$lookup": {"from": "reviews", "localField": "barcode", "foreignField": "barcode", "as": "reviews"}},
-            {"$sort": {"name": 1}},
-            {"$skip": page * limit},
-            {"$limit": limit},
-        ]
-        products = db.products.aggregate(pipline)
+        products = db.products.find({"$text": {"$search": query}}).sort("name", 1).skip(page * limit).limit(limit)
     else:
         count = db.products.count_documents({})
-        pipline = [
-            {"$lookup": {"from": "reviews", "localField": "barcode", "foreignField": "barcode", "as": "reviews"}},
-            {"$sort": {"name": 1}},
-            {"$skip": page * limit},
-            {"$limit": limit},
-        ]
-        products = db.products.aggregate(pipline)
+        products = db.products.find().sort("name", 1).skip(page * limit).limit(limit)
 
-    # fetch reviews names
+    # fetch latest two reviews with names
+    limit_reviews = 2
     result = []
     for product in products:
-        for review in product["reviews"]:
-            user = db.users.find_one({"_id": review["userId"]})
-            review["name"] = user["name"]
+        reviews = db.reviews.aggregate(
+            [
+                {"$match": {"barcode": product["barcode"]}},
+                {"$lookup": {"from": "users", "localField": "userId", "foreignField": "_id", "as": "user"}},
+                {"$sort": {"createdAt": -1}},
+                {"$limit": limit_reviews},
+            ]
+        )
+
+        product["reviews"] = [{"name": review["user"][0]["name"], "review": review["review"]} for review in reviews]
         result.append(product)
 
     products_schema = ProductSchema(many=True)
